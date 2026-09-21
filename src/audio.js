@@ -147,10 +147,17 @@ export function startAmbience(ctx) {
   tick(ctx.currentTime + 0.1)
   const timer = setInterval(() => tick(ctx.currentTime + 0.05), 1000)
 
+  // Stopping fades the sound away over two seconds, then shuts everything down.
   return () => {
     clearInterval(timer)
-    hiss.stop()
-    rumble.stop()
-    master.disconnect() // silences any clicks already scheduled
+    const now = ctx.currentTime
+    master.gain.cancelScheduledValues(now)
+    master.gain.setValueAtTime(master.gain.value, now)
+    master.gain.linearRampToValueAtTime(0, now + 2)
+    setTimeout(() => {
+      hiss.stop()
+      rumble.stop()
+      master.disconnect() // silences any clicks already scheduled
+    }, 2100)
   }
 }

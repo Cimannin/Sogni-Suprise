@@ -18,7 +18,8 @@ function starColor(t, alpha) {
 
 // A tall mirror in a black wooden frame whose glass is a swirling green portal.
 // The frame is CSS (.mirror in gate.css); the moving portal is drawn on the canvas below.
-export default function Mirror() {
+// `entering` starts the slow zoom into the portal (see .mirror--entering in gate.css).
+export default function Mirror({ entering }) {
   const canvasRef = useRef(null)
 
   useEffect(() => {
@@ -103,7 +104,7 @@ export default function Mirror() {
   }, [])
 
   return (
-    <div className="mirror" aria-hidden="true">
+    <div className={`mirror ${entering ? 'mirror--entering' : ''}`} aria-hidden="true">
       {/* Decorations on top of the frame (styled in gate.css) */}
       <div className="mirror__crest" />
       <div className="mirror__finial mirror__finial--left" />

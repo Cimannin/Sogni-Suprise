@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 
 // Full-screen falling rain drawn on a canvas. Fades in via the .rain CSS class.
-export default function Rain() {
+// `over` lifts it above the 3D game so the rain falls across the world.
+export default function Rain({ over }) {
   const canvasRef = useRef(null)
 
   useEffect(() => {
@@ -61,5 +62,5 @@ export default function Rain() {
     }
   }, [])
 
-  return <canvas ref={canvasRef} className="rain" aria-hidden="true" />
+  return <canvas ref={canvasRef} className={over ? 'rain rain--over' : 'rain'} aria-hidden="true" />
 }

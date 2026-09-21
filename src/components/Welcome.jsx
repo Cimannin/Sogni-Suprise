@@ -9,9 +9,10 @@ const LEAVE_MS = 1500
 
 // Shown after a visitor passes the Gate.
 // stage: 'riddles' (asking them) -> 'leaving' (fading out) -> 'finale' (praise, dark, rain)
-export default function Welcome() {
-  const [stage, setStage] = useState('riddles')
-  const [audio, setAudio] = useState(null) // { ctx, fadeOutMusic }, or null if no audio support
+// `skipToMirror` / `initialAudio` come from the secret shortcut in App.jsx (temporary).
+export default function Welcome({ skipToMirror, initialAudio }) {
+  const [stage, setStage] = useState(skipToMirror ? 'finale' : 'riddles')
+  const [audio, setAudio] = useState(initialAudio ?? null) // { ctx, fadeOutMusic }, or null if no audio support
 
   // Called by Riddles when the last riddle is answered correctly.
   function handleSolved() {
@@ -30,7 +31,7 @@ export default function Welcome() {
   return (
     <main className="screen welcome">
       {stage === 'finale' ? (
-        <Finale audio={audio} />
+        <Finale audio={audio} startPhase={skipToMirror ? 'mirror' : 'praise'} />
       ) : (
         <div className={`welcome__content ${stage === 'leaving' ? 'welcome__content--leaving' : ''}`}>
           <h1 className="welcome__title">Wizer, now I want you to answer these riddles.</h1>
