@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { generateLevel } from './level.js'
 import { createAlice } from './alice.js'
+import { createCinnamoroll } from './cinnamoroll.js'
 import { makeCardMaterials } from './cards.js'
 import {
   PLATFORM_THICKNESS,
@@ -28,6 +29,32 @@ function makeAuraTexture() {
   ctx.fillStyle = g
   ctx.fillRect(0, 0, 256, 256)
   return new THREE.CanvasTexture(canvas)
+}
+
+// Puts `object` in the empty space near the start, off to the side of the route so it
+// isn't in the way. Tries a few directions (left first) and takes the first one that
+// leaves at least 7 units of clearance from every card.
+function placeInAbyss(object, platforms) {
+  const start = platforms[0]
+  const next = platforms[1]
+  const heading = Math.atan2(next.x - start.x, next.z - start.z) // direction of the route
+  const distanceTo = (x, y, z, p) => {
+    const dx = Math.max(Math.abs(x - p.x) - p.w / 2, 0)
+    const dz = Math.max(Math.abs(z - p.z) - p.d / 2, 0)
+    return Math.hypot(dx, y - p.top, dz)
+  }
+  for (const degrees of [45, -45, 70, -70, 100, -100, 130, -130]) {
+    const angle = heading + (degrees * Math.PI) / 180
+    const x = start.x + Math.sin(angle) * 19
+    const z = start.z + Math.cos(angle) * 19
+    const y = start.top + 4
+    if (platforms.every((p) => distanceTo(x, y, z, p) >= 7)) {
+      object.position.set(x, y, z)
+      object.rotation.y = Math.atan2(start.x - x, start.z - z) // face the start
+      return
+    }
+  }
+  object.position.set(start.x, start.top - 15, start.z) // fallback: below the start card
 }
 
 // Sets up the whole 3D world inside `container` and starts the game loop.
@@ -96,6 +123,12 @@ export function startGame(container, { onPrompt, onMemory, onFall }) {
     shards.push(shard)
     scene.add(shard)
   }
+
+  // ---------- A Cinnamoroll floating in the abyss, off to one side of the start ----------
+  const cinnamoroll = createCinnamoroll()
+  cinnamoroll.root.scale.setScalar(1.5)
+  scene.add(cinnamoroll.root)
+  placeInAbyss(cinnamoroll.root, level.platforms)
 
   // ---------- The player: Alice ----------
   const alice = createAlice()
@@ -313,6 +346,7 @@ export function startGame(container, { onPrompt, onMemory, onFall }) {
       onPrompt(Boolean(near))
     }
 
+    cinnamoroll.update(time)
     dust.rotation.y = time * 0.01
     for (const s of shards) s.rotation.y += s.userData.spin * dt
   }

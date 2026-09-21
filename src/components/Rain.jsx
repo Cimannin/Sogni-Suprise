@@ -17,9 +17,9 @@ export default function Rain({ over }) {
       return {
         x: Math.random() * (canvas.width + 200),
         y: Math.random() * canvas.height,
-        len: 14 * depth + Math.random() * 18 * depth,
-        speed: 14 * depth + Math.random() * 6,
-        alpha: 0.15 + depth * 0.3,
+        len: 10 * depth + Math.random() * 12 * depth,
+        speed: 9 * depth + Math.random() * 4,
+        alpha: 0.07 + depth * 0.16,
       }
     }
 
@@ -27,7 +27,7 @@ export default function Rain({ over }) {
     function resize() {
       canvas.width = window.innerWidth
       canvas.height = window.innerHeight
-      drops = Array.from({ length: Math.round(canvas.width / 5) }, makeDrop)
+      drops = Array.from({ length: Math.round(canvas.width / 8) }, makeDrop)
     }
 
     const WIND = 0.2 // sideways drift: fraction of fall speed

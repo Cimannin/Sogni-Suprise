@@ -1,7 +1,7 @@
 // Rain + ticking clock, synthesised with the Web Audio API (no audio files needed).
 // To use real recordings later, replace startAmbience() with code that plays your files.
 
-const RAIN_VOLUME = 0.3 // tweak these two to taste (0 to 1)
+const RAIN_VOLUME = 0.18 // tweak these two to taste (0 to 1)
 const CLOCK_VOLUME = 0.7
 const FADE_IN_SECONDS = 3
 
@@ -113,7 +113,7 @@ export function startAmbience(ctx) {
     src.start()
     return src
   }
-  const hiss = rainLayer(1000, 7000, RAIN_VOLUME)
+  const hiss = rainLayer(500, 3200, RAIN_VOLUME)
   const rumble = rainLayer(20, 500, RAIN_VOLUME * 1.6)
 
   // ----- Clock: alternating "tick" and "tock", once a second -----
