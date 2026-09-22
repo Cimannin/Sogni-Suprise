@@ -1,5 +1,5 @@
 // Builds a random level: a winding chain of floating platforms with the memories
-// hovering above two of them. A new layout is made every time the game starts.
+// hovering above some of them. A new layout is made every time the game starts.
 
 const PLATFORM_COUNT = 17
 const MIN_GAP = 1.8 // empty space between platform edges (kept jumpable, see physics.js)
@@ -12,11 +12,13 @@ const MEMORY_HOVER = 2.6 // how far above the platform a memory floats
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 const SUITS = ['hearts', 'diamonds', 'spades', 'clubs']
 
-// The memories. `image` is in public/memories/, `height` is how big it floats in the world,
-// `text` is what shows when the visitor presses E. Edit or add more here.
+// The memories. `image` is a single picture in public/memories/; use `images: [a, b]` instead
+// for a memory that slowly crossfades between two pictures. `height` is how big it floats
+// in the world, `text` is what shows when the visitor presses E. Edit or add more here.
 export const MEMORIES = [
   { id: 'pepsi', image: '/memories/pepsi.png', height: 3.2, text: 'She likes Pepsi Max Mango.' },
   { id: 'music', image: '/memories/currents.png', height: 3.6, text: 'She likes both Tame Impala and Justice.' },
+  { id: 'duo', images: ['/memories/duo-a.png', '/memories/duo-b.png'], height: 3.4, text: 'duoing' },
 ]
 
 const rand = (min, max) => min + Math.random() * (max - min)
@@ -94,11 +96,16 @@ export function generateLevel() {
     platforms = buildRoute()
   } while (!platforms.every((p, i) => i === 0 || edgeGap(platforms[i - 1], p) <= MAX_GAP + 0.01))
 
-  // One memory on a platform early in the route, one further along, in random order.
-  const order = Math.random() < 0.5 ? MEMORIES : [...MEMORIES].reverse()
-  const spots = [5 + Math.floor(Math.random() * 3), 12 + Math.floor(Math.random() * 4)]
+  // Spread the memories across the route, in random order: skip the first few platforms
+  // (so nothing shows up right at the start), split what's left into one section per
+  // memory, and put each one on a random platform within its own section.
+  const order = [...MEMORIES].sort(() => Math.random() - 0.5)
+  const usable = platforms.slice(4)
+  const sectionSize = usable.length / order.length
   const memories = order.map((memory, i) => {
-    const p = platforms[spots[i]]
+    const from = Math.floor(i * sectionSize)
+    const to = Math.floor((i + 1) * sectionSize)
+    const p = usable[from + Math.floor(Math.random() * Math.max(1, to - from))]
     return {
       ...memory,
       x: p.x + rand(-1, 1) * (p.w / 2 - 1),

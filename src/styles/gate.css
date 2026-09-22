@@ -473,6 +473,32 @@ body,
   font-size: 1.1rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
+  animation: fade-in 1.5s ease-in both; /* appears once the entry cinematic hands over control */
+}
+
+/* Cinnamoroll's line during the entry cinematic, typed out in Game.jsx (see INTRO_TEXT
+   in engine.js). A classic subtitle placement, since the camera framing moves around her. */
+.game__intro-line {
+  position: absolute;
+  left: 50%;
+  bottom: 18%;
+  transform: translateX(-50%);
+  width: min(90vw, 34rem);
+  margin: 0;
+  text-align: center;
+  font-size: clamp(1.3rem, 3.8vw, 2.1rem);
+  font-style: italic;
+  animation: fade-in 0.6s ease-out both;
+}
+
+.game__caret {
+  display: inline-block;
+  width: 0.09em;
+  height: 1em;
+  margin-left: 0.06em;
+  background: var(--bone);
+  vertical-align: -0.15em;
+  animation: caret-blink 0.9s step-end infinite;
 }
 
 /* "Press E" appears when close to a memory */
@@ -511,7 +537,23 @@ body,
   animation: fade-in-out 6s ease-in-out both;
 }
 
-/* Shown after the last memory, stays until she jumps */
+/* "Something She never sees, yet has." — shown just before the golden heart fades in */
+.game__heart-line {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  transform: translateX(-50%);
+  width: min(90vw, 40rem);
+  margin: 0;
+  text-align: center;
+  font-size: clamp(1.6rem, 4.5vw, 2.6rem);
+  font-style: italic;
+  color: #ffd98a; /* warm gold, matching the heart's glow */
+  text-shadow: 0 0 20px rgba(255, 200, 90, 0.7), 0 2px 2px #000;
+  animation: fade-in 1.4s ease-in both;
+}
+
+/* Shown once the heart is collected, stays until she jumps */
 .game__leap {
   position: absolute;
   left: 50%;
@@ -524,7 +566,7 @@ body,
   font-style: italic;
   color: var(--blood-bright);
   text-shadow: 0 0 18px rgba(212, 20, 31, 0.8), 0 2px 2px #000;
-  animation: fade-in 2.4s ease-in 6.5s both; /* waits for the last memory to finish first */
+  animation: fade-in 2s ease-in both;
 }
 
 /* Black closes in while she falls (length matches FALL_FADE_MS in Game.jsx) */
@@ -633,6 +675,12 @@ body,
     opacity: 0.55;
   }
   100% {
+    opacity: 0;
+  }
+}
+
+@keyframes caret-blink {
+  50% {
     opacity: 0;
   }
 }

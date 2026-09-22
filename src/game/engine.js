@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { generateLevel } from './level.js'
 import { createAlice } from './alice.js'
 import { createCinnamoroll } from './cinnamoroll.js'
+import { createHeart } from './heart.js'
 import { makeCardMaterials } from './cards.js'
 import {
   PLATFORM_THICKNESS,
@@ -14,8 +15,43 @@ import {
 const FOG_COLOR = 0x03100f // same deep teal-black as the rest of the site
 const INTERACT_DISTANCE = 4 // how close you must be to a memory to press E
 const FALL_LIMIT = -25 // fall below this and you respawn at the start
-const LEAP_DEPTH = 6 // once every memory is found, falling this far below the lowest card counts as "the leap"
+const LEAP_DEPTH = 6 // once the golden heart is collected, falling this far below the lowest card counts as "the leap"
+
+// ---------- The golden heart ----------
+// Once every memory is found, a line appears, then the heart fades in a little in front of
+// wherever she's standing, and she has to walk up to it and press E.
+export const HEART_LINE = 'Something She never sees, yet has'
+// The last memory's own "She likes..." message (.game__message in gate.css) takes 6s to fade
+// in, hold and fade out — wait for that to clear the screen before this line appears.
+const HEART_LINE_DELAY = 6.5
+const HEART_LINE_HOLD = 3.6 // how long the line stays up before the heart fades in
 const CAMERA_DISTANCE = 6.5
+
+// ---------- The entry cinematic ----------
+// On arrival the camera holds on Alice, pans over to Cinnamoroll, waits while she "speaks"
+// (see INTRO_TEXT below), then pans back and hands control to the visitor.
+export const INTRO_TEXT = "There isn't much time, gather these memories."
+export const INTRO_TYPE_SECONDS = 2.2 // how long Game.jsx takes to type the line out
+const INTRO = {
+  panStart: 1, // wait this long (the portal-arrival flash is still fading) before panning
+  panToCinna: 2.4,
+  holdAtCinna: 0.6,
+  holdAfterType: 1.8, // how long the line stays up once fully typed
+  panBack: 2.2,
+}
+// Cumulative timestamps (seconds since the world appeared) for each step of the above.
+const T_PAN_START = INTRO.panStart
+const T_CINNA_ARRIVE = T_PAN_START + INTRO.panToCinna
+const T_TYPE_START = T_CINNA_ARRIVE + INTRO.holdAtCinna
+const T_TYPE_END = T_TYPE_START + INTRO_TYPE_SECONDS
+const T_PANBACK_START = T_TYPE_END + INTRO.holdAfterType
+const T_PANBACK_END = T_PANBACK_START + INTRO.panBack
+
+// Eases 0..1 with a slow start and end (a smoother smoothstep), used for the camera pans.
+function smootherstep(t) {
+  t = Math.min(1, Math.max(0, t))
+  return t * t * t * (t * (t * 6 - 15) + 10)
+}
 
 // A soft white glow texture, drawn once on a canvas (no image file needed).
 function makeAuraTexture() {
@@ -61,8 +97,16 @@ function placeInAbyss(object, platforms) {
 //   onPrompt(true/false)        -> show/hide "Press E"
 //   onMemory(text, foundCount)  -> a memory was read
 //   onFall()                    -> every memory was found and she has jumped off into the void
+//   onIntroText(true/false)     -> show/type out (or hide) INTRO_TEXT, during the entry cinematic
+//   onIntroEnd()                -> the cinematic is over; movement and the HUD can appear
+//   onHeartLine(true/false)     -> show/hide HEART_LINE, just before the golden heart appears
+//   onHeartCollected()          -> the golden heart has been picked up
 // Returns a function that shuts everything down (call it when leaving the screen).
-export function startGame(container, { onPrompt, onMemory, onFall }) {
+export function startGame(container, { onPrompt, onMemory, onFall, onIntroText, onIntroEnd, onHeartLine, onHeartCollected }) {
+  // `now` in the game loop below is performance.now(), which counts from when the page itself
+  // loaded — not from when this world appeared (visitors may spend a minute+ on the gate,
+  // riddles and finale first). The entry cinematic's timings need to count from right here.
+  const startTime = performance.now() / 1000
   const level = generateLevel()
   const boxes = level.platforms.map(platformBox)
 
@@ -130,6 +174,15 @@ export function startGame(container, { onPrompt, onMemory, onFall }) {
   scene.add(cinnamoroll.root)
   placeInAbyss(cinnamoroll.root, level.platforms)
 
+  // The cinematic's shot of Cinnamoroll: parked in front of her face. She was turned to
+  // face the start platform, so "in front of her face" is further along that same line.
+  const cinnaPos = cinnamoroll.root.position
+  const towardStart = new THREE.Vector3(level.platforms[0].x - cinnaPos.x, 0, level.platforms[0].z - cinnaPos.z).normalize()
+  const cinnaShot = {
+    position: cinnaPos.clone().addScaledVector(towardStart, 6.5).add(new THREE.Vector3(0, 1, 0)),
+    target: cinnaPos.clone().add(new THREE.Vector3(0, 0.2, 0)),
+  }
+
   // ---------- The player: Alice ----------
   const alice = createAlice()
   const figure = alice.root
@@ -149,12 +202,10 @@ export function startGame(container, { onPrompt, onMemory, onFall }) {
   // ---------- Memories: glowing images floating above the platforms ----------
   const auraTexture = makeAuraTexture()
   const loader = new THREE.TextureLoader()
-  const memories = level.memories.map((data) => {
-    const group = new THREE.Group()
-    group.position.set(data.x, data.y, data.z)
 
-    // The picture is added on top of the world as light. This tiny shader also cuts out the
-    // image's dark background and fades its edges, so only the glowing artwork is left.
+  // Builds one image plane, added on top of the world as light. This tiny shader also cuts
+  // out the image's dark background and fades its edges, so only the glowing artwork is left.
+  function makePicture(src, height) {
     const picture = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
       new THREE.ShaderMaterial({
@@ -181,13 +232,36 @@ export function startGame(container, { onPrompt, onMemory, onFall }) {
         side: THREE.DoubleSide,
       }),
     )
-    loader.load(data.image, (texture) => {
+    loader.load(src, (texture) => {
       texture.colorSpace = THREE.SRGBColorSpace
       picture.material.uniforms.map.value = texture
       const aspect = texture.image.width / texture.image.height
-      picture.scale.set(data.height * aspect, data.height, 1)
+      picture.scale.set(height * aspect, height, 1)
     })
+    return picture
+  }
 
+  // For a two-image memory: which of the two is showing, as [weight A, weight B] (each
+  // 0 to 1). Holds on one, crossfades to the other, holds, and crossfades back.
+  function crossfadeWeights(time) {
+    const HOLD = 1.8
+    const FADE = 0.7
+    const at = ((time % (2 * (HOLD + FADE))) + 2 * (HOLD + FADE)) % (2 * (HOLD + FADE))
+    if (at < HOLD) return [1, 0]
+    if (at < HOLD + FADE) {
+      const t = (at - HOLD) / FADE
+      return [1 - t, t]
+    }
+    if (at < 2 * HOLD + FADE) return [0, 1]
+    const t = (at - (2 * HOLD + FADE)) / FADE
+    return [t, 1 - t]
+  }
+
+  const memories = level.memories.map((data) => {
+    const group = new THREE.Group()
+    group.position.set(data.x, data.y, data.z)
+
+    const pictures = (data.images ?? [data.image]).map((src) => makePicture(src, data.height))
     const aura = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: auraTexture,
@@ -199,14 +273,24 @@ export function startGame(container, { onPrompt, onMemory, onFall }) {
       }),
     )
     const light = new THREE.PointLight(0xffffff, 40, 16)
-    group.add(aura, picture, light)
+    group.add(aura, light, ...pictures)
     scene.add(group)
 
-    return { data, group, picture, aura, light, baseY: data.y, phase: Math.random() * 6, found: false }
+    return { data, group, pictures, aura, light, baseY: data.y, phase: Math.random() * 6, found: false }
   })
   let foundCount = 0
   const lowestCard = Math.min(...level.platforms.map((p) => p.top))
   let leaped = false // true once the ending fall has been announced
+
+  // The golden heart: created now (invisible until revealed), positioned once she's found
+  // every memory. See the HEART_* constants above for the sequence's timings.
+  const heart = createHeart()
+  scene.add(heart.root)
+  let heartSequenceStart = null // `time` the last memory was found; null until then
+  let heartLineShown = false
+  let heartRevealed = false
+  let heartCollected = false
+  let nearHeart = false // close enough to collect it, if it's out and not yet collected
 
   // ---------- Controls ----------
   const keys = {}
@@ -216,20 +300,40 @@ export function startGame(container, { onPrompt, onMemory, onFall }) {
   const first = level.platforms[1]
   yaw = Math.atan2(-(first.x - start.x), -(first.z - start.z))
 
+  let controlsEnabled = false // set true once the entry cinematic finishes
+  let currentTime = 0 // this frame's `time` (see update below), so key handlers can use it too
   let nearMemory = null // the memory close enough to read, if any
+  let promptShown = false // whether "Press E" is currently on screen
+
+  // The normal third-person camera: behind and above the player, looking at her.
+  function followCameraShot() {
+    const fx = -Math.sin(yaw)
+    const fz = -Math.cos(yaw)
+    const target = new THREE.Vector3(player.x, player.y + 1.2, player.z)
+    const flat = Math.cos(pitch) * CAMERA_DISTANCE
+    const position = new THREE.Vector3(target.x - fx * flat, target.y + Math.sin(pitch) * CAMERA_DISTANCE, target.z - fz * flat)
+    return { position, target }
+  }
 
   function tryInteract() {
+    if (nearHeart && !heartCollected) {
+      heartCollected = true
+      heart.collect(currentTime)
+      onHeartCollected()
+      return
+    }
     if (!nearMemory) return
     if (!nearMemory.found) {
       nearMemory.found = true
       foundCount++
+      if (foundCount === memories.length) heartSequenceStart = currentTime
     }
     onMemory(nearMemory.data.text, foundCount)
   }
 
   function onKeyDown(e) {
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault()
-    if (e.repeat) return
+    if (e.repeat || !controlsEnabled) return
     keys[e.code] = true
     if (e.code === 'Space') pressJump(player)
     if (e.code === 'KeyE') tryInteract()
@@ -244,6 +348,7 @@ export function startGame(container, { onPrompt, onMemory, onFall }) {
   const onMouseDown = () => (dragging = true)
   const onMouseUp = () => (dragging = false)
   function onMouseMove(e) {
+    if (!controlsEnabled) return
     if (document.pointerLockElement !== canvas && !dragging) return
     yaw -= e.movementX * 0.003
     pitch = Math.min(1.2, Math.max(-0.2, pitch + e.movementY * 0.003))
@@ -265,18 +370,23 @@ export function startGame(container, { onPrompt, onMemory, onFall }) {
   document.addEventListener('mousemove', onMouseMove)
 
   // ---------- Game loop ----------
-  function update(dt, time) {
-    // Turn the camera with the arrow keys too
-    if (keys.ArrowLeft) yaw += 2 * dt
-    if (keys.ArrowRight) yaw -= 2 * dt
+  let introTextShown = false // guards onIntroText so it only fires once per state
 
-    // W/A/S/D relative to where the camera is looking
-    const forward = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0)
-    const strafe = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0)
-    const fx = -Math.sin(yaw)
-    const fz = -Math.cos(yaw)
-    let dirX = fx * forward + Math.cos(yaw) * strafe
-    let dirZ = fz * forward - Math.sin(yaw) * strafe
+  function update(dt, time) {
+    currentTime = time
+    const introTime = time - startTime // seconds since this world appeared (see startTime above)
+
+    if (controlsEnabled) {
+      // Turn the camera with the arrow keys too
+      if (keys.ArrowLeft) yaw += 2 * dt
+      if (keys.ArrowRight) yaw -= 2 * dt
+    }
+
+    // W/A/S/D relative to where the camera is looking (no input at all until controlsEnabled)
+    const forward = controlsEnabled ? (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0) : 0
+    const strafe = controlsEnabled ? (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) : 0
+    let dirX = -Math.sin(yaw) * forward + Math.cos(yaw) * strafe
+    let dirZ = -Math.cos(yaw) * forward - Math.sin(yaw) * strafe
     const length = Math.hypot(dirX, dirZ)
     if (length > 0) {
       dirX /= length
@@ -287,21 +397,48 @@ export function startGame(container, { onPrompt, onMemory, onFall }) {
       figure.rotation.y += turn * Math.min(1, 14 * dt)
     }
 
-    stepPlayer(player, boxes, { dirX, dirZ }, dt)
+    if (controlsEnabled) {
+      stepPlayer(player, boxes, { dirX, dirZ }, dt)
 
-    if (foundCount === memories.length) {
-      // Everything is remembered: this time falling off is the ending, not a respawn.
-      if (!leaped && player.y < lowestCard - LEAP_DEPTH) {
-        leaped = true
-        onFall()
+      if (heartCollected) {
+        // The heart is hers: this time falling off is the ending, not a respawn.
+        if (!leaped && player.y < lowestCard - LEAP_DEPTH) {
+          leaped = true
+          onFall()
+        }
+      } else if (player.y < FALL_LIMIT) {
+        // Fell off the world: back to the start
+        Object.assign(player, createPlayer(start.x, start.top, start.z))
       }
-    } else if (player.y < FALL_LIMIT) {
-      // Fell off the world: back to the start
-      Object.assign(player, createPlayer(start.x, start.top, start.z))
+
+      // The golden heart's own sequence: the line, then it fades in in front of her.
+      if (heartSequenceStart !== null && !heartRevealed) {
+        const elapsed = currentTime - heartSequenceStart
+        if (!heartLineShown && elapsed >= HEART_LINE_DELAY) {
+          heartLineShown = true
+          onHeartLine(true)
+        }
+        if (elapsed >= HEART_LINE_DELAY + HEART_LINE_HOLD) {
+          heartRevealed = true
+          onHeartLine(false)
+          // A little in front of wherever she's currently facing, and up at eye height.
+          const fwd = { x: Math.sin(figure.rotation.y), z: Math.cos(figure.rotation.y) }
+          heart.root.position.set(player.x + fwd.x * 3.5, player.y + 2, player.z + fwd.z * 3.5)
+          heart.reveal(currentTime)
+        }
+      }
     }
+    heart.update(currentTime)
 
     figure.position.set(player.x, player.y, player.z)
-    alice.update(dt, { speed: Math.hypot(player.vx, player.vz), onGround: player.onGround, vy: player.vy })
+    // Before controlsEnabled, stepPlayer never runs, so player.onGround is still its
+    // default (false) — override it here so she stands still instead of looking mid-air.
+    alice.update(
+      dt,
+      controlsEnabled
+        ? { speed: Math.hypot(player.vx, player.vz), onGround: player.onGround, vy: player.vy }
+        : { speed: 0, onGround: true, vy: 0 },
+    )
 
     // Shadow: on the highest card below her feet, smaller and fainter the higher she is
     let groundY = -Infinity
@@ -319,13 +456,44 @@ export function startGame(container, { onPrompt, onMemory, onFall }) {
     }
     playerLight.position.set(player.x, player.y + 3, player.z)
 
-    // Third-person camera behind the player
-    const target = new THREE.Vector3(player.x, player.y + 1.2, player.z)
-    const flat = Math.cos(pitch) * CAMERA_DISTANCE
-    camera.position.set(target.x - fx * flat, target.y + Math.sin(pitch) * CAMERA_DISTANCE, target.z - fz * flat)
-    camera.lookAt(target)
+    // ---------- Camera: the entry cinematic, then the normal third-person follow ----------
+    if (introTime < T_PAN_START) {
+      const shot = followCameraShot()
+      camera.position.copy(shot.position)
+      camera.lookAt(shot.target)
+    } else if (introTime < T_CINNA_ARRIVE) {
+      const t = smootherstep((introTime - T_PAN_START) / INTRO.panToCinna)
+      const from = followCameraShot()
+      camera.position.lerpVectors(from.position, cinnaShot.position, t)
+      camera.lookAt(new THREE.Vector3().lerpVectors(from.target, cinnaShot.target, t))
+    } else if (introTime < T_PANBACK_START) {
+      camera.position.copy(cinnaShot.position)
+      camera.lookAt(cinnaShot.target)
+      if (!introTextShown && introTime >= T_TYPE_START) {
+        introTextShown = true
+        onIntroText(true)
+      }
+    } else if (introTime < T_PANBACK_END) {
+      if (introTextShown) {
+        introTextShown = false
+        onIntroText(false)
+      }
+      const t = smootherstep((introTime - T_PANBACK_START) / INTRO.panBack)
+      const to = followCameraShot()
+      camera.position.lerpVectors(cinnaShot.position, to.position, t)
+      camera.lookAt(new THREE.Vector3().lerpVectors(cinnaShot.target, to.target, t))
+    } else {
+      if (!controlsEnabled) {
+        controlsEnabled = true
+        onIntroEnd()
+      }
+      const shot = followCameraShot()
+      camera.position.copy(shot.position)
+      camera.lookAt(shot.target)
+    }
 
     // Memories: bob, pulse their aura, face the camera, and check if the player is close
+    const playerTarget = new THREE.Vector3(player.x, player.y + 1.2, player.z)
     let closest = null
     for (const m of memories) {
       m.group.position.y = m.baseY + Math.sin(time * 1.4 + m.phase) * 0.35
@@ -333,17 +501,27 @@ export function startGame(container, { onPrompt, onMemory, onFall }) {
       const dim = m.found ? 0.55 : 1 // read memories glow a little softer
       m.aura.scale.setScalar(10 * pulse * dim)
       m.aura.material.opacity = 0.85 * dim
-      m.picture.material.uniforms.opacity.value = m.found ? 0.6 : 1
       m.light.intensity = 40 * pulse * dim
-      m.picture.quaternion.copy(camera.quaternion)
 
-      const distance = m.group.position.distanceTo(target)
+      // One picture: fully shown. Two: crossfading between them (see crossfadeWeights above).
+      const pictureOpacity = m.found ? 0.6 : 1
+      const weights = m.pictures.length > 1 ? crossfadeWeights(time + m.phase) : [1]
+      m.pictures.forEach((picture, i) => {
+        picture.material.uniforms.opacity.value = weights[i] * pictureOpacity
+        picture.quaternion.copy(camera.quaternion)
+      })
+
+      const distance = m.group.position.distanceTo(playerTarget)
       if (distance < INTERACT_DISTANCE && (!closest || distance < closest.distance)) closest = { m, distance }
     }
-    const near = closest ? closest.m : null
-    if (near !== nearMemory) {
-      nearMemory = near
-      onPrompt(Boolean(near))
+    nearMemory = closest ? closest.m : null
+    nearHeart = heartRevealed && !heartCollected && heart.root.position.distanceTo(playerTarget) < INTERACT_DISTANCE
+
+    // No "Press E" during the cinematic — she can't act on it yet anyway.
+    const showPrompt = controlsEnabled && (Boolean(nearMemory) || nearHeart)
+    if (showPrompt !== promptShown) {
+      promptShown = showPrompt
+      onPrompt(showPrompt)
     }
 
     cinnamoroll.update(time)
