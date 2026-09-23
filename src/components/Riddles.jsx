@@ -2,23 +2,24 @@ import { useState } from 'react'
 
 // The riddles, asked one at a time. To add or change one, edit this list.
 // `answers` = every accepted spelling, written lowercase with no leading "a"/"the".
+// `hint` is shown on a wrong answer, in place of a generic "Wrong."
 const RIDDLES = [
   {
     text: 'I wear your face but never keep it. Break me, and a hundred of you stare back, all screaming.',
     answers: ['mirror'],
+    hint: 'You look into it every morning.',
   },
   {
     text: "It is always six o'clock where I'm served. I'm poured, sipped, and never finished.",
     answers: ['tea', 'cup of tea', 'teacup', 'tea cup', 'tea time', 'teatime'],
+    hint: "Think of a certain mad party, and what's poured there.",
   },
   {
     text: 'I grow tall as the sun sets and die in the dark. I follow you but never speak.',
     answers: ['shadow'],
+    hint: "It walks beside you, but only when there's light.",
   },
 ]
-
-// Same refusal lines idea as the Gate. One is picked at random on a wrong answer.
-const REFUSALS = ['Wrong.', 'Think harder.', 'Try again, little one.', 'How disappointing.']
 
 // Lowercase, trim, and drop a leading "a " / "an " / "the " so "A Mirror" matches "mirror".
 function normalize(text) {
@@ -55,8 +56,8 @@ export default function Riddles({ onSolved }) {
         setIndex(index + 1)
       }
     } else {
-      // Wrong: same shake + red flash as the Gate, then let them retry.
-      setRefusal(REFUSALS[Math.floor(Math.random() * REFUSALS.length)])
+      // Wrong: same shake + red flash as the Gate, but show a hint instead of a scold.
+      setRefusal(RIDDLES[index].hint)
       setShaking(true)
       setFlashKey((k) => k + 1)
       setAnswer('')

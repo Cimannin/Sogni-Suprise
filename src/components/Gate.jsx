@@ -7,8 +7,8 @@ const SECRET_NAME = 'wizer'
 // Keep this in sync with the `gate-out` animation duration in gate.css.
 const LEAVE_MS = 1200
 
-// Creepy lines shown on a wrong name. One is picked at random each time.
-const REFUSALS = ['Begone.', 'Not you.', 'Leave this place.', 'You are not expected.']
+// Shown on a wrong name — a hint toward SECRET_NAME, not a random creepy line anymore.
+const HINT = 'A name she was given, because she is wise.'
 
 export default function Gate({ onEnter }) {
   const [name, setName] = useState('')
@@ -28,8 +28,8 @@ export default function Gate({ onEnter }) {
       setLeaving(true)
       setTimeout(onEnter, LEAVE_MS)
     } else {
-      // Wrong: shake the input, flash red, show a message, and let them retry.
-      setRefusal(REFUSALS[Math.floor(Math.random() * REFUSALS.length)])
+      // Wrong: shake the input, flash red, show the hint, and let them retry.
+      setRefusal(HINT)
       setShaking(true)
       setFlashKey((k) => k + 1)
       setName('')

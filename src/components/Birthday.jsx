@@ -1,3 +1,6 @@
+import { useRef } from 'react'
+import { playAirhorn } from '../audio.js'
+
 // The final message. Fades in line by line, slowly, like the words at the very start.
 // Each part starts `delay` seconds after the screen appears. Edit the wording or timings here.
 const PARTS = [
@@ -13,7 +16,24 @@ const PARTS = [
   { text: 'Thank you for being you and I hope you have an amazing day Wizer', delay: 18 },
 ]
 
+// How long after the screen appears the button shows up — after the last line above
+// has had time to fully fade in (its own delay + the ~2.8s .birthday p fade takes).
+const BUTTON_DELAY = 21
+
 export default function Birthday() {
+  // Reused across clicks so we don't spin up a fresh AudioContext every press.
+  const audioCtxRef = useRef(null)
+
+  function handlePress() {
+    // Created here, inside the click, because browsers only allow sound that starts
+    // from a user gesture like this one.
+    if (!audioCtxRef.current) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext
+      audioCtxRef.current = AudioCtx ? new AudioCtx() : null
+    }
+    if (audioCtxRef.current) playAirhorn(audioCtxRef.current)
+  }
+
   return (
     <div className="birthday">
       {PARTS.map((part) => (
@@ -25,6 +45,16 @@ export default function Birthday() {
           {part.text}
         </p>
       ))}
+
+      {/* A little surprise once she's read everything. Swap the label for whatever you like. */}
+      <button
+        type="button"
+        className="gate__button birthday__button"
+        style={{ animationDelay: `${BUTTON_DELAY}s` }}
+        onClick={handlePress}
+      >
+        Press me
+      </button>
     </div>
   )
 }

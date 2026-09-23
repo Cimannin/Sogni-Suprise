@@ -630,6 +630,12 @@ body,
   text-wrap: balance; /* even line lengths, no lone last word */
 }
 
+/* A little surprise button once she's read everything (see BUTTON_DELAY in Birthday.jsx) */
+.birthday__button {
+  margin-top: 1rem;
+  animation: fade-in 2s ease-in both; /* delay set inline in Birthday.jsx */
+}
+
 /* ---------- Animations ---------- */
 
 @keyframes enter-mirror {

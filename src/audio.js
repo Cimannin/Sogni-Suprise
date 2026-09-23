@@ -161,3 +161,57 @@ export function startAmbience(ctx) {
     }, 2100)
   }
 }
+
+// ---------- Airhorn ----------
+
+// Put your own sound clips here (in the project's public/audio/ folder), and list them
+// below — one is picked at random each time the button is pressed. If the pick is missing
+// or can't be played, a synthesized honk plays instead.
+const AIRHORN_FILES = ['/audio/airhorn.mp3', '/audio/the-krusty-krab-pizza-song.mp3']
+
+// Plays a random one of AIRHORN_FILES. Call from a click (or other) user gesture —
+// browsers block sound that doesn't start from one — passing a fresh or existing AudioContext.
+export function playAirhorn(ctx) {
+  ctx.resume()
+  const src = AIRHORN_FILES[Math.floor(Math.random() * AIRHORN_FILES.length)]
+  const file = new Audio(src)
+  file.addEventListener('error', () => playSynthAirhorn(ctx), { once: true }) // missing file / not real audio
+  file.play().catch(() => playSynthAirhorn(ctx))
+}
+
+// Fallback: a classic party air-horn blast, a few detuned sawtooth voices through a bright
+// filter, with a fast attack and a decisive cutoff.
+function playSynthAirhorn(ctx) {
+  const now = ctx.currentTime
+
+  const master = ctx.createGain()
+  master.gain.setValueAtTime(0, now)
+  master.gain.linearRampToValueAtTime(0.9, now + 0.03) // fast attack: the "honk" hits at once
+  master.gain.setValueAtTime(0.9, now + 1.1)
+  master.gain.linearRampToValueAtTime(0, now + 1.4) // then cuts off
+  master.connect(ctx.destination)
+
+  const filter = ctx.createBiquadFilter()
+  filter.type = 'lowpass'
+  filter.frequency.value = 3200
+  filter.Q.value = 1.5
+  filter.connect(master)
+
+  // Three detuned sawtooth voices for the brassy "honk", plus a higher one for brightness.
+  const baseFreq = 370
+  for (const detune of [-9, 0, 9]) {
+    const osc = ctx.createOscillator()
+    osc.type = 'sawtooth'
+    osc.frequency.value = baseFreq
+    osc.detune.value = detune
+    osc.connect(filter)
+    osc.start(now)
+    osc.stop(now + 1.4)
+  }
+  const bright = ctx.createOscillator()
+  bright.type = 'sawtooth'
+  bright.frequency.value = baseFreq * 1.5
+  bright.connect(filter)
+  bright.start(now)
+  bright.stop(now + 1.4)
+}
