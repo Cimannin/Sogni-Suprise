@@ -22,7 +22,7 @@ function pickSpot(prev) {
   return spot
 }
 
-// "Is Wizer good or bad?" Good continues. Bad runs away when the mouse touches it,
+// "Is Wiser good or bad?" Good continues. Bad runs away when the mouse touches it,
 // and if they manage to click it anyway (touch screen, keyboard) they get scolded.
 // `leaving` fades it out; `onGood` is called when Good is clicked.
 export default function Verdict({ leaving, onGood }) {
@@ -65,11 +65,11 @@ export default function Verdict({ leaving, onGood }) {
 
       {scolded ? (
         <p className="verdict__scold" style={{ animationDuration: `${SCOLD_MS}ms` }}>
-          Wrong, Wizer is an amazing person, don't dare speak ill of her.
+          Wrong, Wiser is an amazing person, don't dare speak ill of her.
         </p>
       ) : (
         <>
-          <p className="verdict__question">Is Wizer good or bad?</p>
+          <p className="verdict__question">Is Wiser good or bad?</p>
           <div className="verdict__buttons">
             <button className="gate__button" type="button" onClick={onGood}>
               Good

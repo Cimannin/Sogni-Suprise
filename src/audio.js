@@ -1,6 +1,11 @@
 // Rain + ticking clock, synthesised with the Web Audio API (no audio files needed).
 // To use real recordings later, replace startAmbience() with code that plays your files.
 
+// The site can be hosted somewhere other than the domain root (e.g. GitHub Pages project
+// sites, at /<repo-name>/). Vite fills this in at build time, so every audio file path
+// below is written relative to it — never as a plain "/audio/...".
+const BASE = import.meta.env.BASE_URL
+
 const RAIN_VOLUME = 0.18 // tweak these two to taste (0 to 1)
 const CLOCK_VOLUME = 0.7
 const FADE_IN_SECONDS = 3
@@ -17,7 +22,7 @@ function makeNoiseBuffer(ctx, seconds = 2) {
 
 // Put your own music file here (in the project's public/audio/ folder).
 // If it's missing or can't be played, a built-in music-box lullaby plays instead.
-const MUSIC_FILE = '/audio/idle.mp3'
+const MUSIC_FILE = `${BASE}audio/idle.mp3`
 const MUSIC_VOLUME = 0.5
 
 // Fallback: a slow, eerie music-box tune in A minor, made from bell-like tones.
@@ -167,7 +172,7 @@ export function startAmbience(ctx) {
 // Put your own sound clips here (in the project's public/audio/ folder), and list them
 // below — one is picked at random each time the button is pressed. If the pick is missing
 // or can't be played, a synthesized honk plays instead.
-const AIRHORN_FILES = ['/audio/airhorn.mp3', '/audio/the-krusty-krab-pizza-song.mp3']
+const AIRHORN_FILES = [`${BASE}audio/airhorn.mp3`, `${BASE}audio/the-krusty-krab-pizza-song.mp3`]
 
 // Plays a random one of AIRHORN_FILES. Call from a click (or other) user gesture —
 // browsers block sound that doesn't start from one — passing a fresh or existing AudioContext.

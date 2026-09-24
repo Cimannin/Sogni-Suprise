@@ -22,7 +22,7 @@ const Game = lazy(loadGame)
 //   -> ending (she has found every memory and jumped: the rain fades away, the birthday message appears)
 // Each text phase lasts `ms`. Edit the lines or timings here.
 const TEXT_PHASES = {
-  praise: { text: "Well done, Wizer... you've impressed me.", ms: 6500 },
+  praise: { text: "Well done, Wiser... you've impressed me.", ms: 6500 },
   important: { text: 'But now for something important.', ms: 5500 },
   ticking: { text: 'Time is ticking.', ms: 5000 },
 }

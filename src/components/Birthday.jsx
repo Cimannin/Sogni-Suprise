@@ -13,7 +13,7 @@ const PARTS = [
     text: "But to be honest, I've never met someone with such a Golden Heart like yours, you truly care for people and that really says a lot.",
     delay: 12,
   },
-  { text: 'Thank you for being you and I hope you have an amazing day Wizer', delay: 18 },
+  { text: 'Thank you for being you and I hope you have an amazing day Wiser', delay: 18 },
 ]
 
 // How long after the screen appears the button shows up — after the last line above

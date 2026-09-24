@@ -12,21 +12,36 @@ const MEMORY_HOVER = 2.6 // how far above the platform a memory floats
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 const SUITS = ['hearts', 'diamonds', 'spades', 'clubs']
 
+// The site can be hosted somewhere other than the domain root (e.g. GitHub Pages project
+// sites, at /<repo-name>/). Vite fills this in at build time, so every image path below is
+// written relative to it — never as a plain "/memories/...".
+const BASE = import.meta.env.BASE_URL
+
 // The memories. `image` is a single picture in public/memories/; use `images: [a, b]` instead
 // for a memory that slowly crossfades between two pictures. `height` is how big it floats
 // in the world, `text` is what shows when the visitor presses E. Edit or add more here.
 export const MEMORIES = [
-  { id: 'pepsi', image: '/memories/pepsi.png', height: 3.2, text: 'She likes Pepsi Max Mango.' },
-  { id: 'music', image: '/memories/currents.png', height: 3.6, text: 'She likes Tame Impala, Justice, and Gorillaz.' },
-  { id: 'duo', images: ['/memories/duo-a.png', '/memories/duo-b.png'], height: 3.4, text: 'duoing' },
+  { id: 'pepsi', image: `${BASE}memories/pepsi.png`, height: 3.2, text: 'She likes Pepsi Max Mango.' },
+  {
+    id: 'music',
+    image: `${BASE}memories/currents.png`,
+    height: 3.6,
+    text: 'She likes Tame Impala, Justice, and Gorillaz.',
+  },
+  {
+    id: 'duo',
+    images: [`${BASE}memories/duo-a.png`, `${BASE}memories/duo-b.png`],
+    height: 3.4,
+    text: 'duoing',
+  },
   {
     id: 'monsters-vs-aliens',
-    image: '/memories/monsters-vs-aliens.png',
+    image: `${BASE}memories/monsters-vs-aliens.png`,
     height: 3.4,
     text: 'Monsters vs Aliens is one of her favourites since she was little',
   },
-  { id: 'rain', image: '/memories/rain-splash.png', height: 3.2, text: 'She likes the rain.' },
-  { id: 'pickles', image: '/memories/pickles.png', height: 3, text: 'She likes pickles...too much.' },
+  { id: 'rain', image: `${BASE}memories/rain-splash.png`, height: 3.2, text: 'She likes the rain.' },
+  { id: 'pickles', image: `${BASE}memories/pickles.png`, height: 3, text: 'She likes pickles...too much.' },
 ]
 
 const rand = (min, max) => min + Math.random() * (max - min)

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 
 // The name that opens the gate (compared case-insensitively, trimmed).
-const SECRET_NAME = 'wizer'
+const SECRET_NAME = 'wiser'
 
 // How long the gate takes to fade out before we tell App to show Welcome.
 // Keep this in sync with the `gate-out` animation duration in gate.css.

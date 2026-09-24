@@ -34,7 +34,7 @@ export default function Welcome({ skipToMirror, initialAudio }) {
         <Finale audio={audio} startPhase={skipToMirror ? 'mirror' : 'praise'} />
       ) : (
         <div className={`welcome__content ${stage === 'leaving' ? 'welcome__content--leaving' : ''}`}>
-          <h1 className="welcome__title">Wizer, now I want you to answer these riddles.</h1>
+          <h1 className="welcome__title">Wiser, now I want you to answer these riddles.</h1>
           <Riddles onSolved={handleSolved} />
         </div>
       )}
